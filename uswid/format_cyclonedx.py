@@ -151,6 +151,13 @@ class uSwidFormatCycloneDX(uSwidFormatBase):
                 component.version_scheme = _convert_str_to_version_scheme(
                     meta.get("value")
                 )
+            # for BSI TR-03183
+            if meta.get("bsi:component:executable") == True:
+                component.is_executable = True
+            if meta.get("bsi:component:archive") == True:
+                component.is_archive = True
+            if meta.get("bsi:component:structured") == True:
+                component.is_structured = True
 
         try:
             component.activation_status = data["pedigree"]["notes"]
@@ -246,6 +253,7 @@ class uSwidFormatCycloneDX(uSwidFormatBase):
                 if data_author["name"] == "NOASSERTION":
                     continue
                 tag_creators.append(data_author["name"])
+            entity = _convert_entity_from_dict(data["supplier"])
 
         container = uSwidContainer()
 
@@ -466,6 +474,18 @@ class uSwidFormatCycloneDX(uSwidFormatBase):
             metadata["revision"] = component.revision
         if component.version_scheme:
             metadata["versionScheme"] = str(component.version_scheme)
+
+        # for BSI TR-03183
+        if component.type == uSwidComponentType.FIRMWARE:
+            metadata["bsi:component:executable"] = (
+                "executable" if component.is_executable else "non-executable"
+            )
+            metadata["bsi:component:archive"] = (
+                "archive" if component.is_archive else "no archive"
+            )
+            metadata["bsi:component:structured"] = (
+                "structured" if component.is_structured else "unstructured"
+            )
 
         # pedigree
         pedigree: Dict[str, Any] = {}

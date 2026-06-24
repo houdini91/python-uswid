@@ -44,6 +44,7 @@ class uSwidFormatPkgconfig(uSwidFormatBase):
 
     def load(self, blob: bytes, path: Optional[str] = None) -> uSwidContainer:
         component = uSwidComponent()
+        component.is_executable = True
         self._load_component(component, blob)
         return uSwidContainer([component])
 

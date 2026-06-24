@@ -39,7 +39,9 @@ def _normalize_spdx_namespace(namespace: Optional[str]) -> Optional[str]:
     return namespace
 
 
-def _namespaced_tag_id(spdx_id: Optional[str], namespace: Optional[str]) -> Optional[str]:
+def _namespaced_tag_id(
+    spdx_id: Optional[str], namespace: Optional[str]
+) -> Optional[str]:
     if not spdx_id:
         return None
     if spdx_id.startswith("SPDXRef-"):
@@ -78,6 +80,16 @@ class uSwidFormatSpdx(uSwidFormatBase):
         component.software_name = pkg.get("name")
         component.summary = pkg.get("summary")
         component.software_version = pkg.get("versionInfo")
+
+        # for BSI TR-03183
+        software_additional_purpose = pkg.get("software_additionalPurpose") or []
+        for software_additional_purpose in software_additional_purposes:
+            if software_additional_purpose == "executable":
+                component.is_executable = True
+            if software_additional_purpose == "archive":
+                component.is_archive = True
+            if software_additional_purpose == "structured":
+                component.is_structured = True
 
         # licenseDeclared (best-effort extraction of SPDX IDs)
         spdx_license_ids = pkg.get("licenseDeclared")
@@ -232,6 +244,21 @@ class uSwidFormatSpdx(uSwidFormatBase):
         if component.software_version:
             root["versionInfo"] = component.software_version
         # not sure where to store component.persistent_id or component.colloquial_version
+
+        # for BSI TR-03183
+        software_additional_purposes = []
+        if component.type == uSwidComponentType.FIRMWARE:
+            software_additional_purposes.append(
+                "executable" if component.is_executable else "non-executable"
+            )
+            software_additional_purposes.append(
+                "archive" if component.is_archive else "no archive"
+            )
+            software_additional_purposes.append(
+                "structured" if component.is_structured else "unstructured"
+            )
+        if software_additional_purposes:
+            root["software_additionalPurpose"] = software_additional_purposes
 
         # checksums
         checksums: List[Dict[str, str]] = []

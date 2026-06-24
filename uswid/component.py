@@ -140,6 +140,13 @@ class uSwidComponent:
         """List of patches"""
         self.patches: List[uSwidPatch] = []
 
+        """Is executable code, i.e. compiled binaries, interpreted code and shared libraries"""
+        self.is_executable: bool = False
+        """Is archive, i.e. should be exploded before scanning"""
+        self.is_archive: bool = False
+        """Is structured, i.e. able to see parts -- and can be decomposed into original component"""
+        self.is_structured: bool = False
+
     def add_source_filename(self, source_file: str) -> None:
         """Adds a source filename, i.e. what file helped created this component"""
         if source_file not in self.source_filenames:
