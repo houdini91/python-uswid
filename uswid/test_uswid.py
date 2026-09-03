@@ -728,6 +728,53 @@ class TestSwidEntity(unittest.TestCase):
             "067cb8292dc062eabbe05734ef7987eb1333b6b6067cb8292dc062eabbe05734",
         )
 
+    def test_measurement_profile(self):
+        """Unit tests for the optional measurement profile on payload + evidence"""
+
+        PROFILE = "uefi-pe-rebase0/v1"
+        SHA = "1348ff9c695f80b31915aa9f159aa3490121c9af446438feb742f8e78e681051"
+
+        # The profile qualifies the file-entry, so on both branches it must sit
+        # beside the hash INSIDE the FILE map, never on the enclosing map.
+        payload = uSwidPayload(name="PeiCore")
+        payload.measurement_profile = PROFILE
+        payload.add_hash(uSwidHash(alg_id=uSwidHashAlg.SHA256, value=SHA))
+        data = uSwidFormatCoswid()._save_payload(payload)  # type: ignore
+        self.assertIn(uSwidGlobalMap.MEASUREMENT_PROFILE, data[uSwidGlobalMap.FILE])
+
+        evidence = uSwidEvidence(device_id="localhost")
+        evidence.measurement_profile = PROFILE
+        evidence.add_hash(uSwidHash(alg_id=uSwidHashAlg.SHA256, value=SHA))
+        data = uSwidFormatCoswid()._save_evidence(evidence)  # type: ignore
+        self.assertNotIn(uSwidGlobalMap.MEASUREMENT_PROFILE, data)
+        self.assertIn(uSwidGlobalMap.MEASUREMENT_PROFILE, data[uSwidGlobalMap.FILE])
+
+        # full CBOR round-trip, both branches at once
+        component = uSwidComponent(tag_id="test", software_version="1.2.3")
+        component.add_entity(
+            uSwidEntity(name="test", roles=[uSwidEntityRole.TAG_CREATOR])
+        )
+        component.add_payload(payload)
+        component.add_evidence(evidence)
+        component2 = uSwidFormatCoswid().load(
+            uSwidFormatCoswid().save(uSwidContainer([component]))
+        )[0]
+        self.assertEqual(component2.payloads[0].measurement_profile, PROFILE)
+        self.assertEqual(component2.evidences[0].measurement_profile, PROFILE)
+        self.assertEqual(component2.payloads[0].hashes[0].value.lower(), SHA)
+
+        # a component that sets no profile encodes and decodes exactly as before
+        plain = uSwidComponent(tag_id="test", software_version="1.2.3")
+        plain.add_entity(uSwidEntity(name="test", roles=[uSwidEntityRole.TAG_CREATOR]))
+        payload2 = uSwidPayload(name="PeiCore")
+        payload2.add_hash(uSwidHash(alg_id=uSwidHashAlg.SHA256, value=SHA))
+        plain.add_payload(payload2)
+        plain2 = uSwidFormatCoswid().load(
+            uSwidFormatCoswid().save(uSwidContainer([plain]))
+        )[0]
+        self.assertIsNone(plain2.payloads[0].measurement_profile)
+
+
     def test_component_purl(self):
         """Unit tests for uSwidComponent, PURL specific"""
 

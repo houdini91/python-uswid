@@ -29,6 +29,12 @@ class uSwidPayload:
         self.size: Optional[int] = size
         """Size in bytes"""
         self._hashes: Dict[uSwidHashAlg, uSwidHash] = {}
+        self.measurement_profile: Optional[str] = None
+        """Identifier for how the hash(es) on this entry were produced, e.g. a
+        canonicalization applied to the bytes before hashing. A bare digest does
+        not say what was fed into it; two producers hashing the same component
+        under different preimages yield different values that look comparable.
+        Optional and free-form: uSWID neither defines nor validates profiles."""
 
     def add_hash(self, ihash: uSwidHash) -> None:
         """Add a hash value, deduplicated by the algorithm ID"""
