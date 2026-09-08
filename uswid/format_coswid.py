@@ -30,6 +30,12 @@ from .evidence import uSwidEvidence
 class uSwidGlobalMap(IntEnum):
     """Represents an enumerated tag ID"""
 
+    # RFC 9393 s6.2.2 reserves all negative values for private use, and -256..-1
+    # specifically for testing and closed environments. MEASUREMENT_PROFILE is
+    # PROVISIONAL: it needs a real index from the IANA "CoSWID Items" registry
+    # (32768+ is Specification Required) before anything using it interoperates.
+    MEASUREMENT_PROFILE = -1
+
     TAG_ID = 0
     SOFTWARE_NAME = 1
     ENTITY = 2
@@ -222,6 +228,8 @@ class uSwidFormatCoswid(uSwidFormatBase):
             for ihash in payload.hashes:
                 payload_hashes.append(self._save_hash(ihash))
             _set_one_or_more(data, uSwidGlobalMap.HASH, payload_hashes)
+        if payload.measurement_profile:
+            data[uSwidGlobalMap.MEASUREMENT_PROFILE] = payload.measurement_profile
         return {uSwidGlobalMap.FILE: data}
 
     def _save_evidence(self, evidence: uSwidEvidence) -> Dict[uSwidGlobalMap, Any]:
@@ -244,6 +252,12 @@ class uSwidFormatCoswid(uSwidFormatBase):
                 evidence_hashes.append(self._save_hash(ihash))
             _set_one_or_more(file_data, uSwidGlobalMap.HASH, evidence_hashes)
             data[uSwidGlobalMap.FILE] = file_data
+        if evidence.measurement_profile:
+            # The profile qualifies the file-entry, so it lives beside the hash
+            # inside FILE -- not on the evidence-map -- for the same reason the
+            # hash does.
+            file_data = data.setdefault(uSwidGlobalMap.FILE, {})
+            file_data[uSwidGlobalMap.MEASUREMENT_PROFILE] = evidence.measurement_profile
         return data
 
     def _save_entity(self, entity: uSwidEntity) -> Dict[uSwidGlobalMap, Any]:
@@ -393,6 +407,8 @@ class uSwidFormatCoswid(uSwidFormatBase):
                     ihash = uSwidHash()
                     self._load_hash(ihash, hash_data)
                     payload.add_hash(ihash)
+            if key == uSwidGlobalMap.MEASUREMENT_PROFILE:
+                payload.measurement_profile = value
 
     def _load_evidence(
         self,
@@ -408,6 +424,9 @@ class uSwidFormatCoswid(uSwidFormatBase):
         # measured hashes live inside a FILE entry (RFC 9393: hash-entry is a member
         # of file-entry), mirroring _load_payload — not at the evidence-map top level.
         for file_data in _get_one_or_more(data, uSwidGlobalMap.FILE):
+            profile = file_data.get(uSwidGlobalMap.MEASUREMENT_PROFILE)
+            if profile:
+                evidence.measurement_profile = profile
             hash_value = file_data.get(uSwidGlobalMap.HASH)
             if not hash_value:  # absent or an empty HASH list -> nothing to load
                 continue
